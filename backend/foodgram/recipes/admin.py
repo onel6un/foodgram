@@ -1,6 +1,7 @@
 from django.contrib import admin
 
-from . import models
+from .models import (TagsForRecipe, Recipes, AmountIngredients, Tags,
+                     Ingredients)
 
 
 class TagsAdmin(admin.ModelAdmin):
@@ -13,12 +14,12 @@ class IngredientsAdmin(admin.ModelAdmin):
 
 
 class TagsInLine(admin.TabularInline):
-    model = models.TagsForRecipe
+    model = TagsForRecipe
     extra = 1
 
 
 class IngredientsInLine(admin.TabularInline):
-    model = models.AmountIngredients
+    model = AmountIngredients
     extra = 1
     raw_id_fields = ('ingredient',)
 
@@ -38,6 +39,6 @@ class UserAdmin(admin.ModelAdmin):
     list_filter = ('username', 'email')
 
 
-admin.site.register(models.Tags, TagsAdmin)
-admin.site.register(models.Ingredients, IngredientsAdmin)
-admin.site.register(models.Recipes, RecipesAdmin)
+admin.site.register(Tags, TagsAdmin)
+admin.site.register(Ingredients, IngredientsAdmin)
+admin.site.register(Recipes, RecipesAdmin)
