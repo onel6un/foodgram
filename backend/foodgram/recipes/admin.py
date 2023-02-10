@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from .models import (TagsForRecipe, Recipes, AmountIngredients, Tags,
-                     Ingredients)
+                     Ingredients, Subscriptions)
 
 
 class TagsAdmin(admin.ModelAdmin):
@@ -39,6 +39,11 @@ class UserAdmin(admin.ModelAdmin):
     list_filter = ('username', 'email')
 
 
+class SubscriptionsAdmin(admin.ModelAdmin):
+    list_display = ('user', 'author')
+
+
 admin.site.register(Tags, TagsAdmin)
 admin.site.register(Ingredients, IngredientsAdmin)
 admin.site.register(Recipes, RecipesAdmin)
+admin.site.register(Subscriptions, SubscriptionsAdmin)

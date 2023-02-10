@@ -107,3 +107,6 @@ class Subscriptions(models.Model):
         on_delete=models.CASCADE,
         related_name='following',
     )
+
+    def __str__(self) -> str:
+        return f'{self.user} to {self.author}'
