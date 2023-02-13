@@ -24,6 +24,17 @@ class Ingredients(models.Model):
         return self.name
 
 
+class IngredientAmount(models.Model):
+    ingredient = models.ForeignKey(
+        Ingredients,
+        on_delete=models.CASCADE
+    )
+    amount = models.IntegerField()
+
+    def __str__(self) -> str:
+        return f'{self.ingredient} - {self.amount}'
+
+
 class Recipes(models.Model):
     """Модель рецептов"""
     name = models.CharField(max_length=200)
@@ -34,8 +45,8 @@ class Recipes(models.Model):
     text = models.TextField()
     cooking_time = models.IntegerField()
     ingredients = models.ManyToManyField(
-        Ingredients,
-        through='AmountIngredients'
+        IngredientAmount,
+        through='HelpIngredients'
     )
     tags = models.ManyToManyField(
         Tags,
@@ -44,14 +55,6 @@ class Recipes(models.Model):
     image = models.ImageField(
         upload_to='recipes/',
         blank=True
-    )
-    is_favorited = models.BooleanField(
-        default=False,
-        verbose_name='Нахождение в избранном'
-    )
-    is_in_shopping_cart = models.BooleanField(
-        default=False,
-        verbose_name='Нахождение в корзине'
     )
 
     def __str__(self) -> str:
@@ -70,17 +73,16 @@ class TagsForRecipe(models.Model):
     )
 
 
-class AmountIngredients(models.Model):
-    """Модель количества ингредиента (вспомогательная модель)"""
+class HelpIngredients(models.Model):
+    """Модель отношения ингредиента и рецепта (вспомогательная модель)"""
     recipe = models.ForeignKey(
         Recipes,
         on_delete=models.CASCADE
     )
     ingredient = models.ForeignKey(
-        Ingredients,
+        IngredientAmount,
         on_delete=models.CASCADE
     )
-    amount = models.IntegerField()
 
 
 class FavoritRecipes(models.Model):
@@ -110,3 +112,18 @@ class Subscriptions(models.Model):
 
     def __str__(self) -> str:
         return f'{self.user} to {self.author}'
+
+
+class RecipesOnCart(models.Model):
+    """Рецепты в корзине пользователя"""
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE
+    )
+    recipes = models.ForeignKey(
+        Recipes,
+        on_delete=models.CASCADE
+    )
+
+    def __str__(self) -> str:
+        return f'{self.user} to {self.recipes}'

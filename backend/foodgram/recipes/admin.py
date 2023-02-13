@@ -1,7 +1,7 @@
 from django.contrib import admin
 
-from .models import (TagsForRecipe, Recipes, AmountIngredients, Tags,
-                     Ingredients, Subscriptions)
+from .models import (TagsForRecipe, Recipes, HelpIngredients, Tags,
+                     Ingredients, Subscriptions, IngredientAmount)
 
 
 class TagsAdmin(admin.ModelAdmin):
@@ -9,7 +9,7 @@ class TagsAdmin(admin.ModelAdmin):
 
 
 class IngredientsAdmin(admin.ModelAdmin):
-    list_display = ('name', 'measurement_unit')
+    list_display = ('id', 'name', 'measurement_unit')
     list_filter = ('name',)
 
 
@@ -19,9 +19,8 @@ class TagsInLine(admin.TabularInline):
 
 
 class IngredientsInLine(admin.TabularInline):
-    model = AmountIngredients
+    model = HelpIngredients
     extra = 1
-    raw_id_fields = ('ingredient',)
 
 
 class RecipesAdmin(admin.ModelAdmin):
@@ -43,7 +42,12 @@ class SubscriptionsAdmin(admin.ModelAdmin):
     list_display = ('user', 'author')
 
 
+class IngredientAmountAdmin(admin.ModelAdmin):
+    list_display = ('ingredient', 'amount')
+
+
 admin.site.register(Tags, TagsAdmin)
 admin.site.register(Ingredients, IngredientsAdmin)
 admin.site.register(Recipes, RecipesAdmin)
 admin.site.register(Subscriptions, SubscriptionsAdmin)
+admin.site.register(IngredientAmount, IngredientAmountAdmin)
