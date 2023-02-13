@@ -3,8 +3,8 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 
 from recipes.models import (Tags, Ingredients, Recipes, Subscriptions,
-                            IngredientAmount, FavoritRecipes, RecipesOnCart,
-                            TagsForRecipe, HelpIngredients)
+                            IngredientAmount, RecipesOnCart, TagsForRecipe,
+                            HelpIngredients, FavoritRecipes)
 
 
 User = get_user_model()
@@ -145,6 +145,13 @@ class RecipesSerializerForWrite(serializers.ModelSerializer):
             )
         return value
 
+    def validate_cooking_time(self, value):
+        if value < 1 or value > 1000:
+            raise serializers.ValidationError(
+                'Недопустимное значение!'
+            )
+        return value
+
     class Meta:
         model = Recipes
         fields = ('tags', 'author', 'ingredients', 'name', 'image',
@@ -214,7 +221,7 @@ class RecipesSerializerForWrite(serializers.ModelSerializer):
 
         for ing_value in HelpIngredients.objects.filter(recipe=instance):
             ing_value.delete()
-        
+
         for ingredient_value in ingredients_data:
             ingredient = ingredient_value.get('ingredient')
             amount = ingredient_value.get('amount')
@@ -254,3 +261,27 @@ class RecipesSerializerForWrite(serializers.ModelSerializer):
         serializer = TagsSerializer(tags, many=True)
         ret['tags'] = serializer.data
         return ret
+
+
+class FavoritRecipesSerializers(serializers.ModelSerializer):
+    id = serializers.ReadOnlyField(source='recipes.id')
+    name = serializers.ReadOnlyField(source='recipes.name')
+    image = serializers.ImageField(source='recipes.image', read_only=True)
+    cooking_time = serializers.ReadOnlyField(source='recipes.cooking_time')
+
+    class Meta:
+        model = FavoritRecipes
+        fields = ('id', 'name', 'image', 'cooking_time')
+        read_only_fields = ('id', 'name', 'image', 'cooking_time')
+
+    def validate(self, attrs):
+        user = self.context.get('request').user
+        id_recipe = self.context['view'].kwargs['id']
+
+        if (FavoritRecipes.objects
+                .filter(recipes=id_recipe)
+                .filter(user=user)
+                .exists()):
+            raise serializers.ValidationError('Вы уже подписанны!')
+
+        return attrs

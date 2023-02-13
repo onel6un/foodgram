@@ -3,7 +3,7 @@ from django.urls import path, include
 from rest_framework import routers
 
 from .views import (TagsViewSet, IngredientsViewSet, UsersViewSet,
-                    RecipesViewSet)
+                    RecipesViewSet, FavoriteRecipesViewSet)
 
 
 APP_NAME = 'api'
@@ -15,7 +15,11 @@ router.register('ingredients', IngredientsViewSet)
 router.register('users', UsersViewSet)
 router.register('recipes', RecipesViewSet)
 
+
 urlpatterns = [
     path('', include(router.urls)),
-    path('auth/', include('djoser.urls.jwt'))
+    path('recipes/<int:id>/favorite/',
+         (FavoriteRecipesViewSet
+          .as_view({'delete': 'destroy', 'post': 'create'}))),
+    path('auth/', include('djoser.urls.jwt')),
 ]

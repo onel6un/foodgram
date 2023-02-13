@@ -1,13 +1,16 @@
 from rest_framework import viewsets
 from rest_framework import mixins
+from rest_framework import status
+
 from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
 
 from django.contrib.auth import get_user_model
 
-from recipes.models import (Tags, Ingredients, Recipes)
+from recipes.models import (Tags, Ingredients, Recipes, FavoritRecipes)
 from .serializers import (TagsSerializer, IngredientsSerializer,
                           UserSerializer, RecipesSerializer,
-                          RecipesSerializerForWrite)
+                          RecipesSerializerForWrite, FavoritRecipesSerializers)
 
 User = get_user_model()
 
@@ -45,3 +48,25 @@ class RecipesViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
         serializer.save(
             author=self.request.user
         )
+
+
+class FavoriteRecipesViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin,
+                             mixins.DestroyModelMixin):
+    serializer_class = FavoritRecipesSerializers
+
+    def get_queryset(self):
+        recipe_id = self.kwargs.get('id')
+        queryset = FavoritRecipes.objects.filter(recipes=recipe_id)
+        return queryset
+
+    def perform_create(self, serializer):
+        recipe_id = self.kwargs.get('id')
+        serializer.save(
+            user=self.request.user,
+            recipes=Recipes.objects.get(pk=recipe_id)
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        recipe_id = self.kwargs.get('id')
+        FavoritRecipes.objects.get(recipes=recipe_id).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
