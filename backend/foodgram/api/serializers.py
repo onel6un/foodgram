@@ -1,13 +1,36 @@
+from collections import OrderedDict
+
 from rest_framework import serializers
 
 from django.contrib.auth import get_user_model
 
 from recipes.models import (Tags, Ingredients, Recipes, Subscriptions,
                             IngredientAmount, RecipesOnCart, TagsForRecipe,
-                            HelpIngredients, FavoritRecipes)
+                            HelpIngredients, FavoritRecipes, Subscriptions)
 
 
 User = get_user_model()
+
+
+class DynamicFieldsModelSerializer(serializers.ModelSerializer):
+    """
+    A ModelSerializer that takes an additional `fields` argument that
+    controls which fields should be displayed.
+    """
+
+    def __init__(self, *args, **kwargs):
+        # Don't pass the 'fields' arg up to the superclass
+        fields = kwargs.pop('fields', None)
+
+        # Instantiate the superclass normally
+        super(DynamicFieldsModelSerializer, self).__init__(*args, **kwargs)
+
+        if fields is not None:
+            # Drop any fields that are not specified in the `fields` argument.
+            allowed = set(fields)
+            existing = set(self.fields)
+            for field_name in existing - allowed:
+                self.fields.pop(field_name)
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -29,7 +52,7 @@ class UserSerializer(serializers.ModelSerializer):
         auth_user = self.context.get('request').user
 
         # Объект пользоваетля из полученного параметра
-        another_user = User.objects.get(pk=ret.get('id'))
+        another_user = instance
 
         # queryset на кого подписан аутентифицированный пользователь
         queryset_of_subscribers = Subscriptions.objects.filter(user=auth_user)
@@ -75,7 +98,7 @@ class IngredientAmountSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'measurement_unit', 'amount')
 
 
-class RecipesSerializer(serializers.ModelSerializer):
+class RecipesSerializer(DynamicFieldsModelSerializer):
     tags = TagsSerializer(many=True)
     ingredients = IngredientAmountSerializer(many=True)
     is_favorited = serializers.ReadOnlyField()
@@ -285,3 +308,67 @@ class FavoritRecipesSerializers(serializers.ModelSerializer):
             raise serializers.ValidationError('Вы уже подписанны!')
 
         return attrs
+
+
+class SubscriptionsSerializer(serializers.ModelSerializer):
+    email = serializers.ReadOnlyField()
+    id = serializers.ReadOnlyField()
+    username = serializers.ReadOnlyField()
+    first_name = serializers.ReadOnlyField()
+    last_name = serializers.ReadOnlyField()
+    is_subscribed = serializers.ReadOnlyField()
+    recipes = serializers.ReadOnlyField()
+    recipes_count = serializers.ReadOnlyField()
+
+    class Meta:
+        model = Subscriptions
+        fields = ('email', 'id', 'username', 'first_name', 'last_name',
+                  'is_subscribed', 'recipes', 'recipes_count', 'user',
+                  'author')
+        read_only_fields = ('user', 'author')
+
+    def validate(self, attrs):
+        user = self.context.get('request').user
+        author_id = self.context['view'].kwargs['id']
+
+        if (Subscriptions.objects
+                .filter(author=author_id)
+                .filter(user=user)
+                .exists()):
+            raise serializers.ValidationError('Вы уже подписанны!')
+
+        if user == User.objects.get(pk=author_id):
+            raise serializers.ValidationError(
+                'Вы не можете подписаться на самого себя!'
+            )
+
+        return attrs
+
+    def to_representation(self, instance):
+        ret = OrderedDict()
+
+        request = self.context.get('request')
+
+        author = instance.author
+        author_recipes = author.recipes.all()
+
+        serializer_author = UserSerializer(author,
+                                           context={'request': request})
+        for field, value in serializer_author.data.items():
+            ret[field] = value
+
+        serializer_author_recipes = RecipesSerializer(
+            author_recipes,
+            many=True,
+            fields=('id', 'name', 'image', 'cooking_time'),
+            context={'request': request})
+        recipes_data = serializer_author_recipes.data
+        for ordered_dict in recipes_data:
+            ordered_dict.pop('is_favorited')
+            ordered_dict.pop('is_in_shopping_cart')
+        ret['recipes'] = recipes_data
+
+        recipes_count = author_recipes.count()
+        ret['recipes_count'] = recipes_count
+
+        return ret
