@@ -92,7 +92,7 @@ class FavoritRecipes(models.Model):
         User,
         on_delete=models.CASCADE
     )
-    recipes = models.ForeignKey(
+    recipe = models.ForeignKey(
         Recipes,
         on_delete=models.CASCADE
     )
@@ -121,10 +121,10 @@ class RecipesOnCart(models.Model):
         User,
         on_delete=models.CASCADE
     )
-    recipes = models.ForeignKey(
+    recipe = models.ForeignKey(
         Recipes,
         on_delete=models.CASCADE
     )
 
     def __str__(self) -> str:
-        return f'{self.user} to {self.recipes}'
+        return f'{self.user} to {self.recipe}'

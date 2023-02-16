@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 
 from recipes.models import (Tags, Ingredients, Recipes, Subscriptions,
                             IngredientAmount, RecipesOnCart, TagsForRecipe,
-                            HelpIngredients, FavoritRecipes, Subscriptions)
+                            HelpIngredients, FavoritRecipes)
 
 
 User = get_user_model()
@@ -101,9 +101,9 @@ class IngredientAmountSerializer(serializers.ModelSerializer):
 class RecipesSerializer(DynamicFieldsModelSerializer):
     tags = TagsSerializer(many=True)
     ingredients = IngredientAmountSerializer(many=True)
-    is_favorited = serializers.ReadOnlyField()
-    is_in_shopping_cart = serializers.ReadOnlyField()
     author = UserSerializer()
+    is_favorited = serializers.SerializerMethodField()
+    is_in_shopping_cart = serializers.SerializerMethodField()
 
     class Meta:
         model = Recipes
@@ -111,38 +111,27 @@ class RecipesSerializer(DynamicFieldsModelSerializer):
                   'is_in_shopping_cart', 'name', 'image', 'text',
                   'cooking_time')
 
-    def to_representation(self, instance):
-        """Принимает экземпляр объекта, который требует сериализации,
-        и должен вернуть примитивное представление. Добавим в словарь
-        данные о наличии рецепта в избранном и корзине"""
-        ret = super().to_representation(instance)
-
+    def get_is_favorited(self, obj):
         # Объект аутентифицированного пользователя
         auth_user = self.context.get('request').user
-
-        # Id Рецепта из полученного параметра
-        recipe_current_id = ret.get('id')
 
         # queryset рецептов в избранном у аутентифицированного пользователя
         queryset_of_favorite = FavoritRecipes.objects.filter(user=auth_user)
 
+        return (queryset_of_favorite
+                .filter(recipe=obj)
+                .exists())
+
+    def get_is_in_shopping_cart(self, obj):
+        # Объект аутентифицированного пользователя
+        auth_user = self.context.get('request').user
+
         # queryset рецептов в корзине у аутентифицированного пользователя
         queryset_on_cart = RecipesOnCart.objects.filter(user=auth_user)
 
-        # вернем и добавим в словарь True если аутентифицированный
-        # пользователь подписан на переданного автора
-        ret['is_favorited'] = (
-            queryset_of_favorite
-            .filter(recipes=recipe_current_id)
-            .exists()
-        )
-
-        ret['is_in_shopping_cart'] = (
-            queryset_on_cart
-            .filter(recipes=recipe_current_id)
-            .exists()
-        )
-        return ret
+        return (queryset_on_cart
+                .filter(recipe=obj)
+                .exists())
 
 
 class RecipesSerializerForWrite(serializers.ModelSerializer):
@@ -287,10 +276,10 @@ class RecipesSerializerForWrite(serializers.ModelSerializer):
 
 
 class FavoritRecipesSerializers(serializers.ModelSerializer):
-    id = serializers.ReadOnlyField(source='recipes.id')
-    name = serializers.ReadOnlyField(source='recipes.name')
-    image = serializers.ImageField(source='recipes.image', read_only=True)
-    cooking_time = serializers.ReadOnlyField(source='recipes.cooking_time')
+    id = serializers.ReadOnlyField(source='recipe.id')
+    name = serializers.ReadOnlyField(source='recipe.name')
+    image = serializers.ImageField(source='recipe.image', read_only=True)
+    cooking_time = serializers.ReadOnlyField(source='recipe.cooking_time')
 
     class Meta:
         model = FavoritRecipes
@@ -298,11 +287,12 @@ class FavoritRecipesSerializers(serializers.ModelSerializer):
         read_only_fields = ('id', 'name', 'image', 'cooking_time')
 
     def validate(self, attrs):
+        '''Проверм есть ли рецепт в избранном'''
         user = self.context.get('request').user
         id_recipe = self.context['view'].kwargs['id']
 
         if (FavoritRecipes.objects
-                .filter(recipes=id_recipe)
+                .filter(recipe=id_recipe)
                 .filter(user=user)
                 .exists()):
             raise serializers.ValidationError('Вы уже подписанны!')
@@ -345,6 +335,7 @@ class SubscriptionsSerializer(serializers.ModelSerializer):
         return attrs
 
     def to_representation(self, instance):
+        '''Составим представление в таком виде которое требует спецификация'''
         ret = OrderedDict()
 
         request = self.context.get('request')
@@ -352,23 +343,48 @@ class SubscriptionsSerializer(serializers.ModelSerializer):
         author = instance.author
         author_recipes = author.recipes.all()
 
+        # Сериализируем значение полей автора на которого подписан пользователь
         serializer_author = UserSerializer(author,
                                            context={'request': request})
+        # Переберем в цикле сериализованные поля и добавим их в представление
         for field, value in serializer_author.data.items():
             ret[field] = value
 
+        # Сериализуем рецепты автором которых явлеться тот на кого подписались
         serializer_author_recipes = RecipesSerializer(
             author_recipes,
             many=True,
             fields=('id', 'name', 'image', 'cooking_time'),
             context={'request': request})
         recipes_data = serializer_author_recipes.data
-        for ordered_dict in recipes_data:
-            ordered_dict.pop('is_favorited')
-            ordered_dict.pop('is_in_shopping_cart')
+        # Добавим оъект сериализации в представление
         ret['recipes'] = recipes_data
 
+        # Подсчитаем количество рецептов у автора
         recipes_count = author_recipes.count()
         ret['recipes_count'] = recipes_count
 
         return ret
+
+
+class RecipesOnCartSerializer(serializers.ModelSerializer):
+    id = serializers.ReadOnlyField(source='recipe.id')
+    name = serializers.ReadOnlyField(source='recipe.name')
+    image = serializers.ImageField(source='recipe.image', read_only=True)
+    cooking_time = serializers.ReadOnlyField(source='recipe.cooking_time')
+
+    class Meta:
+        model = RecipesOnCart
+        fields = ('id', 'name', 'image', 'cooking_time')
+
+    def validate(self, attrs):
+        '''Проверим есть ли рецепт уже в корзине'''
+        user = self.context.get('request').user
+        recipe_id = self.context['view'].kwargs['id']
+        if (RecipesOnCart.objects
+                .filter(user=user)
+                .filter(recipe=recipe_id)
+                .exists()):
+            raise serializers.ValidationError('Рецепт уже в корзине!')
+
+        return attrs
