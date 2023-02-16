@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from django.contrib.auth import get_user_model
 
+from authentication.serializers import UserSerializer
 from recipes.models import (Tags, Ingredients, Recipes, Subscriptions,
                             IngredientAmount, RecipesOnCart, TagsForRecipe,
                             HelpIngredients, FavoritRecipes)
@@ -31,44 +32,6 @@ class DynamicFieldsModelSerializer(serializers.ModelSerializer):
             existing = set(self.fields)
             for field_name in existing - allowed:
                 self.fields.pop(field_name)
-
-
-class UserSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
-    is_subscribed = serializers.ReadOnlyField()
-
-    class Meta:
-        model = User
-        fields = ('email', 'id', 'username', 'first_name', 'last_name',
-                  'is_subscribed', 'password')
-
-    def to_representation(self, instance):
-        """Принимает экземпляр объекта, который требует сериализации,
-        и должен вернуть примитивное представление. Добавим в словарь
-        данные о наличии подписки на автора рецептов"""
-        ret = super().to_representation(instance)
-
-        # Объект аутентифицированного пользователя
-        auth_user = self.context.get('request').user
-
-        # Объект пользоваетля из полученного параметра
-        another_user = instance
-
-        # queryset на кого подписан аутентифицированный пользователь
-        queryset_of_subscribers = Subscriptions.objects.filter(user=auth_user)
-
-        # вернем и добавим в словарь True если аутентифицированный
-        # пользователь подписан на переданного автора
-        ret['is_subscribed'] = (
-            queryset_of_subscribers
-            .filter(author=another_user)
-            .exists()
-        )
-
-        return ret
-
-    def create(self, validated_data):
-        return User.objects.create_user(**validated_data)
 
 
 class TagsSerializer(serializers.ModelSerializer):

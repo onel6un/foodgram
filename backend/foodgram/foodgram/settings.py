@@ -129,6 +129,7 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 REST_FRAMEWORK = {
+    'TOKEN_OBTAIN_SERIALIZER': 'authentication.serializers.GetTokenSerializer',
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
@@ -138,6 +139,13 @@ REST_FRAMEWORK = {
     ],
 }
 
+DJOSER = {
+    'SERIALIZERS': {
+        'user_create': 'authentication.serializers.RegisterUserSerializer',
+        'user': 'authentication.serializers.UserSerializer',
+        'current_user': 'authentication.serializers.UserSerializer',
+    },
+}
 
 SIMPLE_JWT = {
     # Устанавливаем срок жизни токена
