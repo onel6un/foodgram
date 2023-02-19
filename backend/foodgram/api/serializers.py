@@ -75,22 +75,28 @@ class RecipesSerializer(DynamicFieldsModelSerializer):
                   'cooking_time')
 
     def get_is_favorited(self, obj):
-        # Объект аутентифицированного пользователя
-        auth_user = self.context.get('request').user
+        # Объект пользователя
+        user = self.context.get('request').user
+
+        if not user.is_authenticated:
+            return False
 
         # queryset рецептов в избранном у аутентифицированного пользователя
-        queryset_of_favorite = FavoritRecipes.objects.filter(user=auth_user)
+        queryset_of_favorite = FavoritRecipes.objects.filter(user=user)
 
         return (queryset_of_favorite
                 .filter(recipe=obj)
                 .exists())
 
     def get_is_in_shopping_cart(self, obj):
-        # Объект аутентифицированного пользователя
-        auth_user = self.context.get('request').user
+        # Объект пользователя
+        user = self.context.get('request').user
+
+        if not user.is_authenticated:
+            return False
 
         # queryset рецептов в корзине у аутентифицированного пользователя
-        queryset_on_cart = RecipesOnCart.objects.filter(user=auth_user)
+        queryset_on_cart = RecipesOnCart.objects.filter(user=user)
 
         return (queryset_on_cart
                 .filter(recipe=obj)
@@ -129,7 +135,7 @@ class RecipesSerializerForWrite(serializers.ModelSerializer):
 
     class Meta:
         model = Recipes
-        fields = ('tags', 'author', 'ingredients', 'name', 'image',
+        fields = ('id', 'tags', 'author', 'ingredients', 'name', 'image',
                   'text', 'cooking_time')
 
     def create(self, validated_data):

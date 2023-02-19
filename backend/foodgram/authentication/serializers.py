@@ -15,13 +15,16 @@ class UserSerializer(UserSerializer):
 
     def get_is_subscribed(self, obj):
         # Объект аутентифицированного пользователя
-        auth_user = self.context.get('request').user
+        user = self.context.get('request').user
+
+        if not user.is_authenticated:
+            return False
 
         # Объект пользоваетля из полученного параметра
         another_user = obj
 
         # queryset на кого подписан аутентифицированный пользователь
-        queryset_of_subscribers = Subscriptions.objects.filter(user=auth_user)
+        queryset_of_subscribers = Subscriptions.objects.filter(user=user)
 
         # Вернем True если аутентифицированный
         # пользователь подписан на переданного автора

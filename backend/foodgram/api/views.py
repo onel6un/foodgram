@@ -1,12 +1,11 @@
 from django.http import HttpResponse
+from django.contrib.auth import get_user_model
 
 from rest_framework import viewsets
 from rest_framework import mixins
+from rest_framework import permissions
 
-from rest_framework.permissions import AllowAny
-
-from django.contrib.auth import get_user_model
-
+from .permissions import AuthorOrReadOnly, ReadOnly
 from recipes.models import (Tags, Ingredients, Recipes, FavoritRecipes,
                             Subscriptions, RecipesOnCart)
 from .serializers import (TagsSerializer, IngredientsSerializer,
@@ -27,19 +26,25 @@ class TagsViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
                   mixins.RetrieveModelMixin):
     queryset = Tags.objects.all()
     serializer_class = TagsSerializer
+    permission_classes = (ReadOnly,)
 
 
 class IngredientsViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
                          mixins.RetrieveModelMixin):
     queryset = Ingredients.objects.all()
     serializer_class = IngredientsSerializer
+    permission_classes = (ReadOnly,)
 
 
 class RecipesViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
                      mixins.CreateModelMixin, mixins.UpdateModelMixin,
                      mixins.RetrieveModelMixin, mixins.DestroyModelMixin):
     queryset = Recipes.objects.all()
-    permission_classes = (AllowAny,)
+
+    def get_permissions(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            return (permissions.AllowAny(),)
+        return (AuthorOrReadOnly(),)
 
     def get_serializer_class(self):
         if self.action == 'list' or self.action == 'retrieve':
@@ -63,14 +68,14 @@ class FavoriteRecipesViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin,
         user_obj = self.request.user
         queryset = (FavoritRecipes.objects
                     .filter(user=user_obj)
-                    .filter(recipes=recipe_id))
+                    .filter(recipe=recipe_id))
         return queryset
 
     def perform_create(self, serializer):
         recipe_id = self.kwargs.get('id')
         serializer.save(
             user=self.request.user,
-            recipes=Recipes.objects.get(pk=recipe_id)
+            recipe=Recipes.objects.get(pk=recipe_id)
         )
 
 
