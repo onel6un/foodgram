@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'api',
     'authentication',
     'rest_framework',
+    'rest_framework.authtoken',
     'djoser',
 ]
 
@@ -129,13 +130,12 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 REST_FRAMEWORK = {
-    'TOKEN_OBTAIN_SERIALIZER': 'authentication.serializers.GetTokenSerializer',
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
 
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
     ],
 }
 
@@ -146,9 +146,3 @@ DJOSER = {
         'current_user': 'authentication.serializers.UserSerializer',
     },
 }
-
-SIMPLE_JWT = {
-    # Устанавливаем срок жизни токена
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
-    'AUTH_HEADER_TYPES': ('Bearer',),
-} 

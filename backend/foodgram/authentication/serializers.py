@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from djoser.serializers import UserCreateSerializer, UserSerializer
 
@@ -41,11 +40,3 @@ class RegisterUserSerializer(UserCreateSerializer):
         model = User
         fields = ('email', 'id', 'username', 'first_name', 'last_name',
                   'password')
-
-
-class GetTokenSerializer(TokenObtainPairSerializer):
-    def validate(self, attrs):
-        data = super().validate(attrs)
-        data.pop("refresh")
-        data['auth_token'] = data.pop("access")
-        return data
