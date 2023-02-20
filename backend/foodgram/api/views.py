@@ -1,5 +1,6 @@
 from django.http import HttpResponse
 from django.contrib.auth import get_user_model
+from django.db.models import Count, Exists, OuterRef
 
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -51,7 +52,27 @@ class RecipesViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
     def get_queryset(self):
         '''Явно определим бекенд фильтрации, по параметрам
         is_favorited, is_in_shopping_cart'''
-        queryset = Recipes.objects.all()
+        # Получим объект пользователя из запроса
+        user = self.request.user
+        if self.request.user.is_authenticated:
+            # Subquery пользоаватель - рецепт в избранном
+            subquery_favorite = FavoritRecipes.objects.filter(
+                user=user,
+                recipe=OuterRef('pk')
+            )
+            # Subquery пользоаватель - рецепт в корзине
+            subquery_cart = RecipesOnCart.objects.filter(
+                user=user,
+                recipe=OuterRef('pk')
+            )
+            # Добавим в аннотации два парметра о нахождении данного рецепта
+            # в избранном и корзине
+            queryset = Recipes.objects.annotate(
+                in_favorite=Exists(subquery_favorite),
+                is_in_shopping_cart=Exists(subquery_cart)
+            )
+        else:
+            queryset = Recipes.objects.all()
 
         # Получим query params из запроса
         is_favorited_query = self.request.query_params.get('is_favorited')
@@ -62,9 +83,6 @@ class RecipesViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
         # Создадим два пустых QS
         filter_favorite_queryset = Recipes.objects.none()
         filter_cart_queryset = Recipes.objects.none()
-
-        # Получим объект пользователя из запроса
-        user = self.request.user
 
         # Если параметр фильтрации не None и равен '0' или '1'
         if is_favorited_query is not None and is_favorited_query in ('0', '1'):
@@ -153,10 +171,22 @@ class SubscriptionsViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin,
     serializer_class = SubscriptionsSerializer
     lookup_field = 'author'
     lookup_url_kwarg = 'id'
+    pagination_class = LimitOffsetPagination
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Subscriptions.objects.filter(user=user)
+        queryset = (Subscriptions.objects
+                    .annotate(count_rec=Count('author__recipes'))
+                    .filter(user=user))
+
+        recipes_limit_query = self.request.query_params.get('recipes_limit')
+        # Если передан параметр с лимитом рецептов у автора
+        if recipes_limit_query is not None:
+            rec_limit = int(recipes_limit_query)
+            # Отфильтруем подписки на тех авторов у кого рецептов столько или
+            # меньше чем в переданном параметре
+            queryset = queryset.filter(count_rec__lte=rec_limit)
+
         return queryset
 
     def perform_create(self, serializer):

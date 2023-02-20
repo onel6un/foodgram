@@ -80,13 +80,7 @@ class RecipesSerializer(DynamicFieldsModelSerializer):
 
         if not user.is_authenticated:
             return False
-
-        # queryset рецептов в избранном у аутентифицированного пользователя
-        queryset_of_favorite = FavoritRecipes.objects.filter(user=user)
-
-        return (queryset_of_favorite
-                .filter(recipe=obj)
-                .exists())
+        return obj.in_favorite
 
     def get_is_in_shopping_cart(self, obj):
         # Объект пользователя
@@ -94,13 +88,7 @@ class RecipesSerializer(DynamicFieldsModelSerializer):
 
         if not user.is_authenticated:
             return False
-
-        # queryset рецептов в корзине у аутентифицированного пользователя
-        queryset_on_cart = RecipesOnCart.objects.filter(user=user)
-
-        return (queryset_on_cart
-                .filter(recipe=obj)
-                .exists())
+        return obj.is_in_shopping_cart
 
 
 class RecipesSerializerForWrite(serializers.ModelSerializer):
@@ -277,7 +265,10 @@ class SubscriptionsSerializer(serializers.ModelSerializer):
     last_name = serializers.ReadOnlyField()
     is_subscribed = serializers.ReadOnlyField()
     recipes = serializers.ReadOnlyField()
-    recipes_count = serializers.ReadOnlyField()
+    recipes_count = serializers.SerializerMethodField()
+
+    def get_recipes_count(self, obj):
+        return obj.count_rec
 
     class Meta:
         model = Subscriptions
@@ -329,9 +320,7 @@ class SubscriptionsSerializer(serializers.ModelSerializer):
         # Добавим оъект сериализации в представление
         ret['recipes'] = recipes_data
 
-        # Подсчитаем количество рецептов у автора
-        recipes_count = author_recipes.count()
-        ret['recipes_count'] = recipes_count
+        ret['recipes_count'] = instance.count_rec
 
         return ret
 
