@@ -4,8 +4,6 @@ from djoser.serializers import UserCreateSerializer, UserSerializer
 
 from django.contrib.auth import get_user_model
 
-from recipes.models import Subscriptions
-
 User = get_user_model()
 
 
@@ -19,16 +17,7 @@ class UserSerializer(UserSerializer):
 
         if not user.is_authenticated:
             return False
-
-        # Объект пользоваетля из полученного параметра
-        another_user = obj
-
-        # queryset на кого подписан аутентифицированный пользователь
-        queryset_of_subscribers = Subscriptions.objects.filter(user=user)
-
-        # Вернем True если аутентифицированный
-        # пользователь подписан на переданного автора
-        return queryset_of_subscribers.filter(author=another_user).exists()
+        return obj.is_subscribed
 
     class Meta:
         model = User
