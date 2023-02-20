@@ -1,17 +1,21 @@
 from django.http import HttpResponse
 from django.contrib.auth import get_user_model
 
+from django_filters.rest_framework import DjangoFilterBackend
+
+from rest_framework.pagination import LimitOffsetPagination
 from rest_framework import viewsets
 from rest_framework import mixins
 from rest_framework import permissions
 
-from .permissions import AuthorOrReadOnly, ReadOnly
 from recipes.models import (Tags, Ingredients, Recipes, FavoritRecipes,
                             Subscriptions, RecipesOnCart)
+from .permissions import AuthorOrReadOnly, ReadOnly
 from .serializers import (TagsSerializer, IngredientsSerializer,
                           UserSerializer, RecipesSerializer,
                           RecipesSerializerForWrite, FavoritRecipesSerializers,
                           SubscriptionsSerializer, RecipesOnCartSerializer)
+from . import filter_sets
 
 User = get_user_model()
 
@@ -40,6 +44,71 @@ class RecipesViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
                      mixins.CreateModelMixin, mixins.UpdateModelMixin,
                      mixins.RetrieveModelMixin, mixins.DestroyModelMixin):
     queryset = Recipes.objects.all()
+    pagination_class = LimitOffsetPagination
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = filter_sets.RecipesFilterSet
+
+    def get_queryset(self):
+        '''Явно определим бекенд фильтрации, по параметрам
+        is_favorited, is_in_shopping_cart'''
+        queryset = Recipes.objects.all()
+
+        # Получим query params из запроса
+        is_favorited_query = self.request.query_params.get('is_favorited')
+        is_in_shopping_cart_query = self.request.query_params.get(
+            'is_in_shopping_cart'
+        )
+
+        # Создадим два пустых QS
+        filter_favorite_queryset = Recipes.objects.none()
+        filter_cart_queryset = Recipes.objects.none()
+
+        # Получим объект пользователя из запроса
+        user = self.request.user
+
+        # Если параметр фильтрации не None и равен '0' или '1'
+        if is_favorited_query is not None and is_favorited_query in ('0', '1'):
+            # Получим QS объектов: текущий пользователь - рецепт в избранном
+            favorit_recipes = (FavoritRecipes.objects.filter(user=user)
+                               .values_list('recipe'))
+
+            if is_favorited_query == '1':
+                # Отфильтруем из начального QS обекты которые есть в корзине
+                favorite_qrst = queryset.filter(id__in=favorit_recipes)
+            else:
+                # Исключим из начального QS обекты которые есть в корзине
+                favorite_qrst = queryset.exclude(id__in=favorit_recipes)
+            # Объединим пустое множество с полученным
+            filter_favorite_queryset = (filter_favorite_queryset
+                                        .union(favorite_qrst))
+
+        # Если параметр фильтрации не None и равен '0' или '1'
+        if (is_in_shopping_cart_query is not None and
+                is_in_shopping_cart_query in ('0', '1')):
+            # Получим QS объектов: текущий пользователь - рецепт в корзине
+            recipes_on_cart = (RecipesOnCart.objects.filter(user=user)
+                               .values_list('recipe'))
+
+            if is_in_shopping_cart_query == '1':
+                # Отфильтруем из начального QS обекты которые есть в корзине
+                on_cart_qrst = queryset.filter(id__in=recipes_on_cart)
+            else:
+                # Исключим из начального QS обекты которые есть в корзине
+                on_cart_qrst = queryset.exclude(id__in=recipes_on_cart)
+            # Объединим пустое множество с полученным
+            filter_cart_queryset = filter_cart_queryset.union(on_cart_qrst)
+
+        # Если переданны оба параметра, венем пересечение множеств
+        if (is_in_shopping_cart_query is not None and
+                is_favorited_query is not None):
+            return filter_favorite_queryset.intersection(filter_cart_queryset)
+
+        # Если переданны один параметр, венем объединение множеств
+        if (is_in_shopping_cart_query is not None or
+                is_favorited_query is not None):
+            return filter_favorite_queryset.union(filter_cart_queryset)
+
+        return queryset
 
     def get_permissions(self):
         if self.request.method in permissions.SAFE_METHODS:

@@ -90,12 +90,16 @@ class FavoritRecipes(models.Model):
     """Модель избранных рецептов"""
     user = models.ForeignKey(
         User,
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        related_name='favorits'
     )
     recipe = models.ForeignKey(
         Recipes,
         on_delete=models.CASCADE
     )
+
+    def __str__(self) -> str:
+        return f'В избранном у {self.user.username} {self.recipe.name}'
 
 
 class Subscriptions(models.Model):
