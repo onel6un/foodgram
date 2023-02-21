@@ -1,6 +1,7 @@
 from django.http import HttpResponse
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Exists, OuterRef
+from django.db.models.query import Prefetch
 
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -13,18 +14,12 @@ from recipes.models import (Tags, Ingredients, Recipes, FavoritRecipes,
                             Subscriptions, RecipesOnCart)
 from .permissions import AuthorOrReadOnly, ReadOnly
 from .serializers import (TagsSerializer, IngredientsSerializer,
-                          UserSerializer, RecipesSerializer,
-                          RecipesSerializerForWrite, FavoritRecipesSerializers,
-                          SubscriptionsSerializer, RecipesOnCartSerializer)
+                          RecipesSerializer, RecipesSerializerForWrite,
+                          FavoritRecipesSerializers, SubscriptionsSerializer,
+                          RecipesOnCartSerializer)
 from . import filter_sets
 
 User = get_user_model()
-
-
-class UsersViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
-                   mixins.RetrieveModelMixin, mixins.CreateModelMixin):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
 
 
 class TagsViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
@@ -55,24 +50,45 @@ class RecipesViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
         # Получим объект пользователя из запроса
         user = self.request.user
         if self.request.user.is_authenticated:
-            # Subquery пользоаватель - рецепт в избранном
+            # Subquery: пользователь - автор в подписках
+            subquery_subscr = Subscriptions.objects.filter(
+                user=user,
+                author=OuterRef('pk')
+            )
+            # Subquery: пользоаватель - рецепт в избранном
             subquery_favorite = FavoritRecipes.objects.filter(
                 user=user,
                 recipe=OuterRef('pk')
             )
-            # Subquery пользоаватель - рецепт в корзине
+            # Subquery: пользоаватель - рецепт в корзине
             subquery_cart = RecipesOnCart.objects.filter(
                 user=user,
                 recipe=OuterRef('pk')
             )
             # Добавим в аннотации два парметра о нахождении данного рецепта
             # в избранном и корзине
-            queryset = Recipes.objects.annotate(
-                in_favorite=Exists(subquery_favorite),
-                is_in_shopping_cart=Exists(subquery_cart)
-            )
+            queryset = (Recipes.objects
+                        .prefetch_related('tags')
+                        .prefetch_related('ingredients')
+                        .prefetch_related('ingredients__ingredient')
+                        .prefetch_related(
+                            Prefetch(
+                                'author',
+                                User.objects.annotate(
+                                    is_subscribed=Exists(subquery_subscr)
+                                )
+                            )
+                        )
+                        .annotate(
+                            in_favorite=Exists(subquery_favorite),
+                            is_in_shopping_cart=Exists(subquery_cart)
+                        ))
         else:
-            queryset = Recipes.objects.all()
+            queryset = (Recipes.objects
+                        .prefetch_related('tags')
+                        .prefetch_related('ingredients')
+                        .prefetch_related('ingredients__ingredient')
+                        )
 
         # Получим query params из запроса
         is_favorited_query = self.request.query_params.get('is_favorited')
@@ -175,7 +191,20 @@ class SubscriptionsViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin,
 
     def get_queryset(self):
         user = self.request.user
+        subquery_subscr = Subscriptions.objects.filter(
+                user=user,
+                author=OuterRef('pk')
+            )
         queryset = (Subscriptions.objects
+                    .prefetch_related(
+                            Prefetch(
+                                'author',
+                                User.objects.annotate(
+                                    is_subscribed=Exists(subquery_subscr)
+                                )
+                            )
+                        )
+                    .prefetch_related('author__recipes')
                     .annotate(count_rec=Count('author__recipes'))
                     .filter(user=user))
 

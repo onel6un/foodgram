@@ -1,5 +1,3 @@
-from collections import OrderedDict
-
 from rest_framework import serializers
 
 from django.contrib.auth import get_user_model
@@ -80,7 +78,19 @@ class RecipesSerializer(DynamicFieldsModelSerializer):
 
         if not user.is_authenticated:
             return False
-        return obj.in_favorite
+
+        try:
+            return obj.in_favorite
+        except AttributeError:
+            # Объект аутентифицированного пользователя
+            auth_user = self.context.get('request').user
+            # queryset рецептов в избранном у аутентифицированного пользователя
+            queryset_of_favorite = FavoritRecipes.objects.filter(
+                                                                user=auth_user)
+
+            return (queryset_of_favorite
+                    .filter(recipe=obj)
+                    .exists())
 
     def get_is_in_shopping_cart(self, obj):
         # Объект пользователя
@@ -88,7 +98,19 @@ class RecipesSerializer(DynamicFieldsModelSerializer):
 
         if not user.is_authenticated:
             return False
-        return obj.is_in_shopping_cart
+
+        try:
+            return obj.is_in_shopping_cart
+        except AttributeError:
+            # Объект аутентифицированного пользователя
+            auth_user = self.context.get('request').user
+
+            # queryset рецептов в корзине у аутентифицированного пользователя
+            queryset_on_cart = RecipesOnCart.objects.filter(user=auth_user)
+
+            return (queryset_on_cart
+                    .filter(recipe=obj)
+                    .exists())
 
 
 class RecipesSerializerForWrite(serializers.ModelSerializer):
@@ -258,24 +280,50 @@ class FavoritRecipesSerializers(serializers.ModelSerializer):
 
 
 class SubscriptionsSerializer(serializers.ModelSerializer):
-    email = serializers.ReadOnlyField()
-    id = serializers.ReadOnlyField()
-    username = serializers.ReadOnlyField()
-    first_name = serializers.ReadOnlyField()
-    last_name = serializers.ReadOnlyField()
-    is_subscribed = serializers.ReadOnlyField()
-    recipes = serializers.ReadOnlyField()
+    email = serializers.ReadOnlyField(source='author.email')
+    id = serializers.ReadOnlyField(source='author.id')
+    username = serializers.ReadOnlyField(source='author.username')
+    first_name = serializers.ReadOnlyField(source='author.first_name')
+    last_name = serializers.ReadOnlyField(source='author.last_name')
+    is_subscribed = serializers.SerializerMethodField()
+    recipes = serializers.SerializerMethodField()
     recipes_count = serializers.SerializerMethodField()
 
+    def get_recipes(self, obj):
+        request = self.context.get('request')
+        recipes = RecipesSerializer(
+            obj.author.recipes,
+            many=True,
+            fields=('id', 'name', 'image', 'cooking_time'),
+            context={'request': request})
+
+        return recipes.data
+
     def get_recipes_count(self, obj):
-        return obj.count_rec
+        try:
+            return obj.count_rec
+        except AttributeError:
+            return obj.author.recipes.all().count()
+
+    def get_is_subscribed(self, obj):
+        try:
+            return obj.author.is_subscribed
+        except AttributeError:
+            user = self.context.get('request').user
+            # Объект пользоваетля из полученного параметра
+            another_user = obj.author
+
+            # queryset на кого подписан аутентифицированный пользователь
+            queryset_of_subscribers = Subscriptions.objects.filter(user=user)
+
+            # Вернем True если аутентифицированный
+            # пользователь подписан на переданного автора
+            return queryset_of_subscribers.filter(author=another_user).exists()
 
     class Meta:
         model = Subscriptions
         fields = ('email', 'id', 'username', 'first_name', 'last_name',
-                  'is_subscribed', 'recipes', 'recipes_count', 'user',
-                  'author')
-        read_only_fields = ('user', 'author')
+                  'is_subscribed', 'recipes', 'recipes_count',)
 
     def validate(self, attrs):
         user = self.context.get('request').user
@@ -293,36 +341,6 @@ class SubscriptionsSerializer(serializers.ModelSerializer):
             )
 
         return attrs
-
-    def to_representation(self, instance):
-        '''Составим представление в таком виде которое требует спецификация'''
-        ret = OrderedDict()
-
-        request = self.context.get('request')
-
-        author = instance.author
-        author_recipes = author.recipes.all()
-
-        # Сериализируем значение полей автора на которого подписан пользователь
-        serializer_author = UserSerializer(author,
-                                           context={'request': request})
-        # Переберем в цикле сериализованные поля и добавим их в представление
-        for field, value in serializer_author.data.items():
-            ret[field] = value
-
-        # Сериализуем рецепты автором которых явлеться тот на кого подписались
-        serializer_author_recipes = RecipesSerializer(
-            author_recipes,
-            many=True,
-            fields=('id', 'name', 'image', 'cooking_time'),
-            context={'request': request})
-        recipes_data = serializer_author_recipes.data
-        # Добавим оъект сериализации в представление
-        ret['recipes'] = recipes_data
-
-        ret['recipes_count'] = instance.count_rec
-
-        return ret
 
 
 class RecipesOnCartSerializer(serializers.ModelSerializer):

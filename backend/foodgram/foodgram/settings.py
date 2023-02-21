@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'djoser',
     'django_filters',
+    'django_extensions',
 ]
 
 MIDDLEWARE = [
@@ -147,3 +148,5 @@ DJOSER = {
         'current_user': 'authentication.serializers.UserSerializer',
     },
 }
+
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
