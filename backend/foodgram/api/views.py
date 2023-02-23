@@ -6,10 +6,7 @@ from django.db.models.query import Prefetch
 from django_filters.rest_framework import DjangoFilterBackend
 
 from rest_framework.pagination import LimitOffsetPagination
-from rest_framework import viewsets
-from rest_framework import mixins
-from rest_framework import permissions
-
+from rest_framework import viewsets, mixins, permissions, filters
 from recipes.models import (Tags, Ingredients, Recipes, FavoritRecipes,
                             Subscriptions, RecipesOnCart)
 from .permissions import AuthorOrReadOnly, ReadOnly
@@ -34,6 +31,8 @@ class IngredientsViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
     queryset = Ingredients.objects.all()
     serializer_class = IngredientsSerializer
     permission_classes = (ReadOnly,)
+    filter_backends = (filters.SearchFilter,)
+    search_fields = ('name',)
 
 
 class RecipesViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
