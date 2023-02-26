@@ -18,7 +18,7 @@ router.register('recipes', RecipesViewSet)
 
 urlpatterns = [
     path('', include('authentication.urls')),
-    path('users/subscribe/',
+    path('users/subscriptions/',
          (SubscriptionsViewSet
           .as_view({'get': 'list'}))),
     path('users/<int:id>/subscribe/',

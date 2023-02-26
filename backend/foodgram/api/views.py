@@ -5,7 +5,6 @@ from django.db.models.query import Prefetch
 
 from django_filters.rest_framework import DjangoFilterBackend
 
-from rest_framework.pagination import LimitOffsetPagination
 from rest_framework import viewsets, mixins, permissions, filters
 from recipes.models import (Tags, Ingredients, Recipes, FavoritRecipes,
                             Subscriptions, RecipesOnCart)
@@ -15,6 +14,7 @@ from .serializers import (TagsSerializer, IngredientsSerializer,
                           FavoritRecipesSerializers, SubscriptionsSerializer,
                           RecipesOnCartSerializer)
 from . import filter_sets
+from .pagination import CustomPagination
 
 User = get_user_model()
 
@@ -39,7 +39,7 @@ class RecipesViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
                      mixins.CreateModelMixin, mixins.UpdateModelMixin,
                      mixins.RetrieveModelMixin, mixins.DestroyModelMixin):
     queryset = Recipes.objects.all()
-    pagination_class = LimitOffsetPagination
+    pagination_class = CustomPagination
     filter_backends = (DjangoFilterBackend,)
     filterset_class = filter_sets.RecipesFilterSet
 
@@ -186,7 +186,7 @@ class SubscriptionsViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin,
     serializer_class = SubscriptionsSerializer
     lookup_field = 'author'
     lookup_url_kwarg = 'id'
-    pagination_class = LimitOffsetPagination
+    pagination_class = CustomPagination
 
     def get_queryset(self):
         user = self.request.user
@@ -268,21 +268,6 @@ class RecipesOnCartViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin,
                     dict_of_ingred[key] = dict_of_ingred[key] + amount
                 else:
                     dict_of_ingred[key] = amount
-
-        '''cat_book = open('cat_book.txt', 'w+')
-        try:
-            for ingredient_name, amount in dict_of_ingred.items():
-                cat_book.write(f'{ingredient_name} — {amount} \n')
-
-            #file_data = cat_book.read()
-            print(cat_book)
-            file_data = '111'
-            response = HttpResponse(file_data, content_type='text/plain')
-            response['Content-Disposition'] = (
-                'attachment; filename="список_ингредиентов.txt"'
-            )
-        finally:
-            cat_book.close()'''
 
         # Составим строковый список ингрединтов
         text = ''

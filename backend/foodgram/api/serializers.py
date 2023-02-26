@@ -1,6 +1,9 @@
+from base64 import b64decode
+
 from rest_framework import serializers
 
 from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
 
 from authentication.serializers import UserSerializer
 from recipes.models import (Tags, Ingredients, Recipes, Subscriptions,
@@ -147,6 +150,17 @@ class RecipesSerializerForWrite(serializers.ModelSerializer):
         model = Recipes
         fields = ('id', 'tags', 'author', 'ingredients', 'name', 'image',
                   'text', 'cooking_time')
+
+    def to_internal_value(self, data):
+        name = data.get('name')
+        image64 = data.pop('image')
+        format, imgstr = image64.split(';base64,')
+        ext = format.split('/')[-1]
+
+        img = ContentFile(b64decode(imgstr), name=f'{name}.' + ext)
+        data['image'] = img
+        ret = super().to_internal_value(data)
+        return ret
 
     def create(self, validated_data):
         ingredients_value = validated_data.pop('ingredients')
