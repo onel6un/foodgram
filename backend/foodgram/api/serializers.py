@@ -152,7 +152,7 @@ class RecipesSerializerForWrite(serializers.ModelSerializer):
                   'text', 'cooking_time')
 
     def to_internal_value(self, data):
-        if self.context.get('request').method == 'post':
+        if self.context.get('request').method == 'POST':
             name = data.get('name')
             image64 = data.pop('image')
             format, imgstr = image64.split(';base64,')
