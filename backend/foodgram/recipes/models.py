@@ -54,9 +54,10 @@ class Recipes(models.Model):
         through='TagsForRecipe'
     )
     image = models.ImageField(
-        upload_to='recipes/',
+        upload_to='recipes/image/',
         blank=True
     )
+    pub_date = models.DateField(auto_now_add=True)
 
     def __str__(self) -> str:
         return self.name

@@ -152,15 +152,16 @@ class RecipesSerializerForWrite(serializers.ModelSerializer):
                   'text', 'cooking_time')
 
     def to_internal_value(self, data):
-        name = data.get('name')
-        image64 = data.pop('image')
-        format, imgstr = image64.split(';base64,')
-        ext = format.split('/')[-1]
+        if self.context.get('request').method == 'post':
+            name = data.get('name')
+            image64 = data.pop('image')
+            format, imgstr = image64.split(';base64,')
+            ext = format.split('/')[-1]
 
-        img = ContentFile(b64decode(imgstr), name=f'{name}.' + ext)
-        data['image'] = img
-        ret = super().to_internal_value(data)
-        return ret
+            img = ContentFile(b64decode(imgstr), name=f'{name}.' + ext)
+            data['image'] = img
+            return super().to_internal_value(data)
+        return super().to_internal_value(data)
 
     def create(self, validated_data):
         ingredients_value = validated_data.pop('ingredients')
@@ -305,8 +306,17 @@ class SubscriptionsSerializer(serializers.ModelSerializer):
 
     def get_recipes(self, obj):
         request = self.context.get('request')
+        data = obj.author.recipes.all()
+
+        # Получим query параметр отображения количества рецептов у автора
+        limit = int(self.context.get('request')
+                    .query_params.get('recipes_limit'))
+        # если не None, сделаем срез
+        if limit is not None:
+            data = data[:limit]
+
         recipes = RecipesSerializer(
-            obj.author.recipes,
+            data,
             many=True,
             fields=('id', 'name', 'image', 'cooking_time'),
             context={'request': request})

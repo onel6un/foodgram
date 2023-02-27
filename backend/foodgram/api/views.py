@@ -81,7 +81,9 @@ class RecipesViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
                         .annotate(
                             in_favorite=Exists(subquery_favorite),
                             is_in_shopping_cart=Exists(subquery_cart)
-                        ))
+                        )
+                        .order_by('pub_date')
+                        )
         else:
             queryset = (Recipes.objects
                         .prefetch_related('tags')
@@ -203,17 +205,14 @@ class SubscriptionsViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin,
                                 )
                             )
                         )
-                    .prefetch_related('author__recipes')
+                    .prefetch_related(
+                            Prefetch(
+                                'author__recipes',
+                                Recipes.objects.order_by('-pub_date')
+                            )
+                        )
                     .annotate(count_rec=Count('author__recipes'))
                     .filter(user=user))
-
-        recipes_limit_query = self.request.query_params.get('recipes_limit')
-        # Если передан параметр с лимитом рецептов у автора
-        if recipes_limit_query is not None:
-            rec_limit = int(recipes_limit_query)
-            # Отфильтруем подписки на тех авторов у кого рецептов столько или
-            # меньше чем в переданном параметре
-            queryset = queryset.filter(count_rec__lte=rec_limit)
 
         return queryset
 
