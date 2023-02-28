@@ -31,7 +31,7 @@ class IngredientsViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
     serializer_class = IngredientsSerializer
     permission_classes = (ReadOnly,)
     filter_backends = (filters.SearchFilter,)
-    search_fields = ('name',)
+    search_fields = ('^name',)
 
 
 class RecipesViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
