@@ -118,8 +118,8 @@ class RecipesViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
                                         .union(favorite_qrst))
 
         # Если параметр фильтрации не None и равен '0' или '1'
-        if (is_in_shopping_cart_query is not None and
-                is_in_shopping_cart_query in ('0', '1')):
+        if (is_in_shopping_cart_query is not None
+                and is_in_shopping_cart_query in ('0', '1')):
             # Получим QS объектов: текущий пользователь - рецепт в корзине
             recipes_on_cart = (RecipesOnCart.objects.filter(user=user)
                                .values_list('recipe'))
@@ -134,13 +134,13 @@ class RecipesViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
             filter_cart_queryset = filter_cart_queryset.union(on_cart_qrst)
 
         # Если переданны оба параметра, венем пересечение множеств
-        if (is_in_shopping_cart_query is not None and
-                is_favorited_query is not None):
+        if (is_in_shopping_cart_query is not None
+                and is_favorited_query is not None):
             return filter_favorite_queryset.intersection(filter_cart_queryset)
 
         # Если переданны один параметр, венем объединение множеств
-        if (is_in_shopping_cart_query is not None or
-                is_favorited_query is not None):
+        if (is_in_shopping_cart_query is not None
+                or is_favorited_query is not None):
             return filter_favorite_queryset.union(filter_cart_queryset)
 
         return queryset
@@ -193,24 +193,24 @@ class SubscriptionsViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin,
     def get_queryset(self):
         user = self.request.user
         subquery_subscr = Subscriptions.objects.filter(
-                user=user,
-                author=OuterRef('pk')
-            )
+            user=user,
+            author=OuterRef('pk')
+        )
         queryset = (Subscriptions.objects
                     .prefetch_related(
-                            Prefetch(
-                                'author',
-                                User.objects.annotate(
-                                    is_subscribed=Exists(subquery_subscr)
-                                )
+                        Prefetch(
+                            'author',
+                            User.objects.annotate(
+                                is_subscribed=Exists(subquery_subscr)
                             )
                         )
+                    )
                     .prefetch_related(
-                            Prefetch(
-                                'author__recipes',
-                                Recipes.objects.order_by('-pub_date')
-                            )
+                        Prefetch(
+                            'author__recipes',
+                            Recipes.objects.order_by('-pub_date')
                         )
+                    )
                     .annotate(count_rec=Count('author__recipes'))
                     .filter(user=user))
 
@@ -275,6 +275,6 @@ class RecipesOnCartViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin,
 
         response = HttpResponse(text, content_type='text/plain')
         response['Content-Disposition'] = (
-                'attachment; filename="список_ингредиентов.txt"'
-            )
+            'attachment; filename="список_ингредиентов.txt"'
+        )
         return response

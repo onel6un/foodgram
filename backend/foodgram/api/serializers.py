@@ -89,7 +89,8 @@ class RecipesSerializer(DynamicFieldsModelSerializer):
             auth_user = self.context.get('request').user
             # queryset рецептов в избранном у аутентифицированного пользователя
             queryset_of_favorite = FavoritRecipes.objects.filter(
-                                                                user=auth_user)
+                user=auth_user
+            )
 
             return (queryset_of_favorite
                     .filter(recipe=obj)
