@@ -95,7 +95,8 @@ class FavoritRecipes(models.Model):
     )
     recipe = models.ForeignKey(
         Recipes,
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        related_name='favorits'
     )
 
     def __str__(self) -> str:

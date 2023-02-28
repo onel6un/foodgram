@@ -32,8 +32,12 @@ class RecipesAdmin(admin.ModelAdmin):
         IngredientsInLine,
         TagsInLine
     )
-    list_display = ('name', 'author')
+    list_display = ('name', 'author', 'in_favorited')
     list_filter = ('name', 'tags', 'author')
+    readonly_fields = ('in_favorited',)
+
+    def in_favorited(self, obj):
+        return obj.favorits.all().count()
 
 
 class UserAdmin(admin.ModelAdmin):
