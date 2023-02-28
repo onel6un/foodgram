@@ -1,15 +1,12 @@
 from base64 import b64decode
 
-from rest_framework import serializers
-
+from authentication.serializers import UserSerializer
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
-
-from authentication.serializers import UserSerializer
-from recipes.models import (Tags, Ingredients, Recipes, Subscriptions,
-                            IngredientAmount, RecipesOnCart, TagsForRecipe,
-                            HelpIngredients, FavoritRecipes)
-
+from recipes.models import (FavoritRecipes, HelpIngredients, IngredientAmount,
+                            Ingredients, Recipes, RecipesOnCart, Subscriptions,
+                            Tags, TagsForRecipe)
+from rest_framework import serializers
 
 User = get_user_model()
 

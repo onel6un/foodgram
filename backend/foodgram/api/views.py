@@ -1,20 +1,19 @@
-from django.http import HttpResponse
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Exists, OuterRef
 from django.db.models.query import Prefetch
-
+from django.http import HttpResponse
 from django_filters.rest_framework import DjangoFilterBackend
+from recipes.models import (FavoritRecipes, Ingredients, Recipes,
+                            RecipesOnCart, Subscriptions, Tags)
+from rest_framework import filters, mixins, permissions, viewsets
 
-from rest_framework import viewsets, mixins, permissions, filters
-from recipes.models import (Tags, Ingredients, Recipes, FavoritRecipes,
-                            Subscriptions, RecipesOnCart)
-from .permissions import AuthorOrReadOnly, ReadOnly
-from .serializers import (TagsSerializer, IngredientsSerializer,
-                          RecipesSerializer, RecipesSerializerForWrite,
-                          FavoritRecipesSerializers, SubscriptionsSerializer,
-                          RecipesOnCartSerializer)
 from . import filter_sets
 from .pagination import CustomPagination
+from .permissions import AuthorOrReadOnly, ReadOnly
+from .serializers import (FavoritRecipesSerializers, IngredientsSerializer,
+                          RecipesOnCartSerializer, RecipesSerializer,
+                          RecipesSerializerForWrite, SubscriptionsSerializer,
+                          TagsSerializer)
 
 User = get_user_model()
 
@@ -170,10 +169,9 @@ class FavoriteRecipesViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin,
     def get_queryset(self):
         recipe_id = self.kwargs.get('id')
         user_obj = self.request.user
-        queryset = (FavoritRecipes.objects
-                    .filter(user=user_obj)
-                    .filter(recipe=recipe_id))
-        return queryset
+        return (FavoritRecipes.objects
+                .filter(user=user_obj)
+                .filter(recipe=recipe_id))
 
     def perform_create(self, serializer):
         recipe_id = self.kwargs.get('id')
@@ -196,25 +194,23 @@ class SubscriptionsViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin,
             user=user,
             author=OuterRef('pk')
         )
-        queryset = (Subscriptions.objects
-                    .prefetch_related(
-                        Prefetch(
-                            'author',
-                            User.objects.annotate(
-                                is_subscribed=Exists(subquery_subscr)
-                            )
+        return (Subscriptions.objects
+                .prefetch_related(
+                    Prefetch(
+                        'author',
+                        User.objects.annotate(
+                            is_subscribed=Exists(subquery_subscr)
                         )
                     )
-                    .prefetch_related(
-                        Prefetch(
-                            'author__recipes',
-                            Recipes.objects.order_by('-pub_date')
-                        )
+                )
+                .prefetch_related(
+                    Prefetch(
+                        'author__recipes',
+                        Recipes.objects.order_by('-pub_date')
                     )
-                    .annotate(count_rec=Count('author__recipes'))
-                    .filter(user=user))
-
-        return queryset
+                )
+                .annotate(count_rec=Count('author__recipes'))
+                .filter(user=user))
 
     def perform_create(self, serializer):
         author_id = self.kwargs.get('id')
@@ -233,8 +229,7 @@ class RecipesOnCartViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin,
 
     def get_queryset(self):
         user = self.request.user
-        queryset = RecipesOnCart.objects.filter(user=user)
-        return queryset
+        return RecipesOnCart.objects.filter(user=user)
 
     def perform_create(self, serializer):
         recipe_id = self.kwargs.get('id')
