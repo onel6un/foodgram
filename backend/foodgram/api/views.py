@@ -30,8 +30,8 @@ class IngredientsViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
     queryset = Ingredients.objects.all()
     serializer_class = IngredientsSerializer
     permission_classes = (ReadOnly,)
-    filter_backends = (filters.SearchFilter,)
-    search_fields = ('^name',)
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = filter_sets.IngredientsFilterSet
 
 
 class RecipesViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
