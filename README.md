@@ -2,6 +2,7 @@
 
 ### Описание проекта 
 На этом сервисе пользователи смогут публиковать рецепты, подписываться на публикации других пользователей, добавлять понравившиеся рецепты в список «Избранное», а перед походом в магазин скачивать сводный список продуктов, необходимых для приготовления одного или нескольких выбранных блюд.
+По заданию, вполнялась написание бэкенда и развертывание сервера в docker compose, на подготовленный фронтенд.
 
 ### Технологии:
 Python:3.7
@@ -25,7 +26,7 @@ PostgreSQL:13.0
     $ docker compose up -d
     $ docker compose exec web python manage.py migrate
     $ docker compose exec web python manage.py collectstatic
-    $ docker compose exec web python manage.py loaddata fixtures.json 
+    $ docker compose exec web python manage.py runscript load_ingredients
 
 При выполнении этой команде сервис frontend, описанный в docker-compose.yml подготовит файлы, необходимые для работы фронтенд-приложения, а затем прекратит свою работу. Проек запуститься в трёх контейнерах (nginx, PostgreSQL и Django), и будет доступен по адресу http://localhost
 
