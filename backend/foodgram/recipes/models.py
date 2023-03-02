@@ -16,7 +16,7 @@ class Tags(models.Model):
 
 class Ingredients(models.Model):
     """Модель ингридиентов"""
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=200, db_index=True)
     measurement_unit = models.CharField(max_length=200)
 
     def __str__(self) -> str:
@@ -56,7 +56,7 @@ class Recipes(models.Model):
         upload_to='recipes/image/',
         blank=True
     )
-    pub_date = models.DateField(auto_now_add=True)
+    pub_date = models.DateField(auto_now_add=True, db_index=True)
 
     def __str__(self) -> str:
         return self.name

@@ -81,13 +81,14 @@ class RecipesViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
                             in_favorite=Exists(subquery_favorite),
                             is_in_shopping_cart=Exists(subquery_cart)
                         )
-                        .order_by('pub_date')
+                        .order_by('-pub_date')
                         )
         else:
             queryset = (Recipes.objects
                         .prefetch_related('tags')
                         .prefetch_related('ingredients')
                         .prefetch_related('ingredients__ingredient')
+                        .order_by('-pub_date')
                         )
 
         # Получим query params из запроса
